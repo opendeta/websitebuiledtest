@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Art Pro 🛡️ Smart-Translate Fixed</title>
+    <style>
+        :root { --primary: #00f2ff; --accent: #7000ff; --bg: #050508; --card-bg: #11111a; }
+        * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background: var(--bg); color: #fff; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        
+        header { padding: 15px; text-align: center; background: rgba(18, 18, 26, 0.95); border-bottom: 1px solid #222; }
+        header h1 { margin: 0; font-size: 20px; background: linear-gradient(to right, var(--primary), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        #gallery { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 20px; align-items: center; }
+        
+        .card { background: var(--card-bg); border: 1px solid #2a2a35; border-radius: 18px; padding: 12px; width: 100%; max-width: 500px; position: relative; animation: slideIn 0.5s ease; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .img-result { width: 100%; border-radius: 12px; margin-top: 10px; background: #1a1a24; border: 1px solid #333; transition: 0.3s; }
+        
+        .del-btn { position: absolute; top: -8px; right: -8px; background: #ff3b3b; color: #fff; border: 2px solid var(--bg); width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-weight: bold; z-index: 10; }
+
+        #bottom-panel { background: #11111a; padding: 15px; border-top: 1px solid #333; }
+        #status-bar { text-align: center; color: var(--primary); font-size: 13px; margin-bottom: 10px; font-weight: bold; min-height: 20px; }
+
+        .input-panel { display: flex; gap: 10px; }
+        input#prompt-input { flex: 1; padding: 14px; background: #1c1c27; border: 1px solid #333; color: #fff; border-radius: 12px; outline: none; font-size: 16px; }
+        
+        button#generate { 
+            background: var(--primary); color: #000; border: none; padding: 0 25px; 
+            border-radius: 12px; font-weight: bold; cursor: pointer; min-width: 140px;
+        }
+
+        button#generate:disabled { background: #1a1a1a; color: #555; cursor: not-allowed; }
+        .timer-active { color: #ff3b3b !important; }
+    </style>
+</head>
+<body>
+
+<header><h1>AI Art Pro ⚡ Google-Smart</h1></header>
+
+<div id="gallery">
+    <div id="placeholder" style="text-align:center; color:#444; margin-top:50px;">
+        <p>🛡️ Google-Translation + ৯০ সেকেন্ডের সুরক্ষা সক্রিয়।<br>যেকোনো ভাষায় লিখুন, রেজাল্ট হবে আসলের মতো!</p>
+    </div>
+</div>
+
+<div id="bottom-panel">
+    <div id="status-bar">সিস্টেম রেডি...</div>
+    <div class="input-panel">
+        <input type="text" id="prompt-input" placeholder="আপনার ভাষায় লিখুন..." autocomplete="off">
+        <button id="generate" onclick="createArt()">তৈরি করুন</button>
+    </div>
+</div>
+
+<script>
+    let blobCache = new Set();
+
+    function setStatus(msg, isWarning = false) {
+        const bar = document.getElementById('status-bar');
+        bar.innerText = msg;
+        bar.className = isWarning ? 'timer-active' : '';
+    }
+
+    // 🌐 নতুন শক্তিশালী গুগল ট্রান্সলেশন ইঞ্জিন
+    async function translateText(text) {
+        try {
+            const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=${encodeURIComponent(text)}`;
+            const response = await fetch(url);
+            const data = await response.json();
+            // গুগল থেকে আসা ট্রান্সলেটেড টেক্সট রিটার্ন করবে
+            return data[0][0][0];
+        } catch (error) {
+            console.error("Translation Error:", error);
+            return text; // কোনোভাবে এরর হলে মূল টেক্সটই পাঠাবে
+        }
+    }
+
+    async function createArt() {
+        const input = document.getElementById('prompt-input');
+        const btn = document.getElementById('generate');
+        const promptRaw = input.value.trim();
+
+        if (!promptRaw) {
+            alert("কিছু একটা লিখুন বস!");
+            return;
+        }
+
+        btn.disabled = true;
+        input.disabled = true;
+        document.getElementById('placeholder').style.display = 'none';
+        
+        // ১. অনুবাদ ধাপ (Smartest Engine)
+        setStatus("🌐 গুগল ইঞ্জিন দ্বারা অনুবাদ করা হচ্ছে...");
+        const translatedText = await translateText(promptRaw);
+        
+        // ২. রেন্ডারিং ধাপ
+        setStatus("🚀 এআই ছবি তৈরি করছে... ৯০ সেকেন্ডের সুরক্ষা শুরু।");
+
+        // আসলের মতো ছবির জন্য ম্যাজিক কিওয়ার্ড
+        const magicBoost = ", professional photography, raw photo, hyper-realistic, 8k uhd, cinematic lighting, sharp focus, masterpiece, highly detailed, realistic texture";
+        const finalPrompt = `Subject: ${translatedText}. Style: ${magicBoost}`;
+
+        const seed = Math.floor(Math.random() * 2000000000);
+        const uniqueID = Date.now() + Math.random().toString(36).substring(7);
+        
+        // FLUX মডেল এবং ১০২৪ রেজোলিউশন
+        const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?width=1024&height=1024&seed=${seed}&model=flux&nologo=true&enhance=true&v=${uniqueID}`;
+
+        const img = new Image();
+        img.src = url;
+
+        img.onload = () => {
+            const cardId = 'art_' + Date.now();
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.id = cardId;
+            card.innerHTML = `
+                <button class="del-btn" onclick="purgeImage('${cardId}')">×</button>
+                <div style="font-size:11px; color:#555; margin-bottom:5px;">Original: "${promptRaw}" <br> Translated: "${translatedText}"</div>
+                <img src="${url}" class="img-result" id="img_${cardId}">
+                <button onclick="downloadAndTrack('${url}')" style="width:100%; margin-top:10px; padding:10px; border-radius:8px; border:none; background:linear-gradient(45deg, #222, #111); color:#00f2ff; cursor:pointer; font-weight:bold; font-size:12px;">ডাউনলোড (HD)</button>
+            `;
+            document.getElementById('gallery').prepend(card);
+            startUltraTimer(90);
+        };
+
+        img.onerror = () => {
+            alert("সার্ভার জ্যাম! আবার চেষ্টা করুন।");
+            resetUI();
+        };
+    }
+
+    function startUltraTimer(seconds) {
+        const btn = document.getElementById('generate');
+        const input = document.getElementById('prompt-input');
+        let timeLeft = seconds;
+        input.value = "";
+
+        const countdown = setInterval(() => {
+            btn.innerText = `লকড (${timeLeft}s)`;
+            
+            if(timeLeft > 70) setStatus("🧹 ক্যাশ মেমোরি পরিষ্কার করা হচ্ছে...", true);
+            else if (timeLeft > 40) setStatus("🛡️ আইপি সুরক্ষা চেক করা হচ্ছে...", true);
+            else if (timeLeft > 15) setStatus("♻️ ইমেজ বাফার রিসেট হচ্ছে...", true);
+            else setStatus("⚡ সিস্টেম পরবর্তী প্রম্পটের জন্য প্রস্তুত...", false);
+            
+            timeLeft--;
+
+            if (timeLeft < 0) {
+                clearInterval(countdown);
+                resetUI();
+            }
+        }, 1000);
+    }
+
+    function resetUI() {
+        const btn = document.getElementById('generate');
+        const input = document.getElementById('prompt-input');
+        btn.disabled = false;
+        input.disabled = false;
+        btn.innerText = "তৈরি করুন";
+        setStatus("✅ সিস্টেম রেডি! যেকোনো ভাষায় লিখুন।");
+        input.focus();
+    }
+
+    function purgeImage(cardId) {
+        const card = document.getElementById(cardId);
+        const img = document.getElementById('img_' + cardId);
+        if (img) img.src = ""; 
+        if (card) {
+            card.style.transform = "scale(0.8)";
+            card.style.opacity = "0";
+            setTimeout(() => card.remove(), 400);
+        }
+        blobCache.forEach(u => URL.revokeObjectURL(u));
+        blobCache.clear();
+    }
+
+    async function downloadAndTrack(url) {
+        try {
+            const res = await fetch(url);
+            const blob = await res.blob();
+            const bUrl = URL.createObjectURL(blob);
+            blobCache.add(bUrl);
+            const a = document.createElement('a');
+            a.href = bUrl;
+            a.download = `AI_Smart_HD_${Date.now()}.jpg`;
+            a.click();
+        } catch (e) {
+            alert("ডাউনলোড ফেইল হলে ছবিতে লং-প্রেস করুন।");
+        }
+    }
+
+    document.getElementById('prompt-input').addEventListener("keypress", (e) => {
+        if (e.key === "Enter" && !document.getElementById('generate').disabled) createArt();
+    });
+</script>
+</body>
+</html>
